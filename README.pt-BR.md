@@ -422,6 +422,11 @@ New-Partition -DiskNumber 2 -UseMaximumSize -AssignDriveLetter | Format-Volume -
 Get-Volume
 ```
 
+```powershell
+# 6. Porem se o disco ja tiver partição e letra designada, voce pode só formatar:
+Format-Volume -DriveLetter E -FileSystem exFAT -NewFileSystemLabel "HDD_Externo"
+```
+
 Observações:
 
 - **exFAT** funciona bem em Windows, macOS e Linux. Para uso só no Windows, troque por `-FileSystem NTFS`.
