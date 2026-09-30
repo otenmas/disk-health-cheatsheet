@@ -24,6 +24,27 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 
 Abra o PowerShell **como Administrador**.
 
+## Localizando o disco e confirmando o disco a ser analisad0/verificado
+
+```powershell
+# lista os discos
+get-disk
+```
+
+# Se esta utilizando um docker ou case USB, Confirme que está em USB
+
+```powershell
+# Altere o Number 2 pelo numero do disco.
+Get-Disk -Number 2 | Select-Object Number, FriendlyName, BusType, Size, PartitionStyle
+```
+
+# Comparar com a etiqueta do disco
+
+```powershell
+smartctl --scan
+smartctl -i /dev/sdc -d sat
+```
+
 ### Visão geral da saúde
 
 ```powershell
