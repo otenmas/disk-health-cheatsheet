@@ -265,13 +265,16 @@ iostat -x 2
 |-----|--------------------------|-----------------------------------------------------------------------|
 | 5   | Reallocated_Sector_Ct    | Setores defeituosos já remapeados. Valores crescentes são mau sinal.  |
 | 9   | Power_On_Hours           | Total de horas que o disco ficou ligado.                              |
+| 12  | Power_Cycle_Count        | O disco foi ligado/desligado X vezes. |
 | 177 | Wear_Leveling_Count      | Desgaste do SSD (o significado varia por fabricante).                 |
 | 187 | Reported_Uncorrect       | Erros que não puderam ser corrigidos.                                 |
 | 194 | Temperature_Celsius      | Temperatura atual.                                                    |
+| 196 | Reallocated_Event_Count  | MUITO IMPORTANTE. Aqui indica se o SSD teve que mover dados de uma célula morta para uma célula reserva. Zero é o ideal. |
 | 197 | Current_Pending_Sector   | Setores aguardando remapeamento. Deve ser 0.                          |
 | 198 | Offline_Uncorrectable    | Setores que falharam na varredura offline. Deve ser 0.                |
 | 199 | UDMA_CRC_Error_Count     | Geralmente indica **cabo ou conexão ruim**, não o disco em si.        |
 | 233 | Media_Wearout_Indicator  | Vida útil restante do SSD (Intel e alguns outros).                    |
+| 234 | Flash_Writes_GIB         | quantidade de Gb que o disco ja escreveu  |
 
 ### Campos NVMe
 
