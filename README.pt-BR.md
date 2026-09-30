@@ -24,39 +24,19 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 
 Abra o PowerShell **como Administrador**.
 
-## Localizando o disco e confirmando o disco a ser analisad0/verificado
+## Instalando o smartmontools no PowerSheel pelo winget
 
 ```powershell
-# lista os discos
-get-disk
+winget install smartmontools.smartmontools
 ```
 
-# Se esta utilizando um docker ou case USB, Confirme que está em USB
-
 ```powershell
-# Altere o Number 2 pelo numero do disco.
-Get-Disk -Number 2 | Select-Object Number, FriendlyName, BusType, Size, PartitionStyle
-```
-
-# Comparar com a etiqueta do disco
-
-```powershell
+# verifique a instalacao
+smartctl --version
 smartctl --scan
-smartctl -i /dev/sdc -d sat
 ```
 
 ### Visão geral da saúde
-
-```powershell
-# Saúde e status operacional de todos os discos físicos
-Get-PhysicalDisk | Select-Object FriendlyName, MediaType, HealthStatus, OperationalStatus, Size
-```
-
-```powershell
-# Temperatura, desgaste, contadores de erro e horas ligado (somente leitura)
-Get-PhysicalDisk | Get-StorageReliabilityCounter |
-  Select-Object DeviceId, Temperature, Wear, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours
-```
 
 ```powershell
 # Listar discos, partições e volumes
@@ -65,8 +45,53 @@ Get-Partition
 Get-Volume
 ```
 
+```powershell
+# Se esta utilizando um docker ou case USB, Confirme que está em USB
+# Altere o Number 2 pelo numero do disco.
+Get-Disk -Number 2 | Select-Object Number, FriendlyName, BusType, Size, PartitionStyle
+```
+
+```powershell
+# Comparar com a etiqueta do disco
+smartctl --scan
+# Troque o /dev/sdc, pelo nome do disco. sda para o disco 0, sdb para o 1, etc.
+smartctl -i /dev/sdc -d sat
+```
+
+```powershell
+# Saúde e status operacional de todos os discos físicos
+Get-PhysicalDisk | Select-Object FriendlyName, MediaType, HealthStatus, OperationalStatus, Size
+# ou especifique o disco pelo numero (troqueo 2 pelo numero do disco)
+Get-PhysicalDisk | Where-Object DeviceId -eq 2
+```
+
+```powershell
+# Temperatura, desgaste, contadores de erro e horas ligado (somente leitura)
+Get-PhysicalDisk | Get-StorageReliabilityCounter |
+  Select-Object DeviceId, Temperature, Wear, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours
+```
+
 ### Verificação do sistema de arquivos
 
+### "SMART with smartctl" e "SMART self-tests" no Windows
+
+```
+# 1. Informações do disco (confirmar modelo e serial reais)
+smartctl -i /dev/sdc -d sat
+
+# 2. Todos os dados SMART
+smartctl -a /dev/sdc -d sat
+
+# 3. Autoteste curto (~2 min) e resultado
+smartctl -t short /dev/sdc -d sat
+smartctl -l selftest /dev/sdc -d sat
+
+# 4. Autoteste longo (pode levar horas), depois ver o resultado
+smartctl -t long /dev/sdc -d sat
+smartctl -l selftest /dev/sdc -d sat
+```
+
+### quando o disco possui letra/unidade
 ```powershell
 # Varredura online, não bloqueia o volume (somente leitura)
 Repair-Volume -DriveLetter C -Scan
