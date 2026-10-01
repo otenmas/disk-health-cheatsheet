@@ -2,7 +2,9 @@
 
 # disk-health-cheatsheet
 
-Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usando comandos de terminal e PowerShell. O foco é a verificação de discos sobressalentes, pera avaliar sua condicao de recuperacao, ou reaproveitamento apos testes e limpeza. Apesar do foco nao ser a integridade dos discos do sistema operacional, foi implantado uma secao para esse fim. Os comandos foram testados com o Windows 11, utilizando o PowerShell, rodando como administrador. no CMD alguns comandos nao funcionam, precisa verificar os comandos correlatos. Tambem foi cirada uma secao para o Linux.
+Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usando comandos de terminal e PowerShell.
+
+O foco é a verificação de discos sobressalentes, para avaliar se estão em condições de ser reaproveitados depois dos testes e da limpeza. A integridade do disco do sistema operacional não é o foco, mas há uma seção para esse fim. Os comandos foram testados no Windows 11, usando o PowerShell como administrador. No CMD, alguns comandos não funcionam e precisam de equivalentes. Há também uma seção para Linux.
 
 ## Índice
 
@@ -12,7 +14,7 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 - [Como interpretar os dados SMART](#como-interpretar-os-dados-smart)
 - [Sinais de alerta](#sinais-de-alerta)
 - [Limpeza, formatação e criação de partição](#limpeza-formatação-e-criação-de-partição)
-- [Integridade dos arquivos do Windows](#Integridade-dos-arquivos-do-Windows)
+- [Verificação do sistema operacional (Windows)](#verificação-do-sistema-operacional-windows)
 - [Linux (terminal)](#linux-terminal)
 - [Licença](#licença)
 
@@ -26,20 +28,26 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 
 ## Fluxo de trabalho de validação (passo a passo)
 
-Roteiro para validar discos SATA descartados (ou novos). Normalmente Tecnicos de Informatica, funcionarios de TI, que trabalham com Hardware, e constantemente trabalham com discos (HDD, SSD), utilizam dock station para HD/SSD USB para testar e clonar os discos. Por isso algums parametros são necessarios nos comandos do **SMART**. No caso de testar os discos conectados diretamente em porta SATA da placa mãe, que em geral é **mais confiável**, os parametros podem mudar.
+Este roteiro serve para validar discos SATA descartados (ou novos) antes de reaproveitá-los: você confere se o disco está saudável e se tem erros ocultos, e só depois o limpa e o formata.
 
-| Ponto	| Dock / case USB |	SATA direto na placa-mãe |
+A base do teste é o **SMART**, um autodiagnóstico que o próprio disco mantém, com contadores de erros, horas de uso, temperatura e desgaste. Para ler esses dados, usamos o programa `smartctl`, do pacote smartmontools.
+
+Técnicos de informática e profissionais de TI que trabalham com hardware costumam testar e clonar discos usando uma **dock station** para HD/SSD (uma base USB onde o disco é encaixado, sem parafusos) ou um case/adaptador USB-SATA. Nesses casos, existe uma ponte USB-SATA entre o computador e o disco, e por isso alguns comandos do `smartctl` precisam de parâmetros extras, como o `-d sat`. Quando o disco é ligado direto em uma porta SATA da placa-mãe, que em geral é **mais confiável**, esses parâmetros normalmente não são necessários.
+
+Os passos abaixo assumem uma dock/case USB. A tabela mostra o que muda em cada tipo de conexão.
+
+| Ponto | Dock / case USB | SATA direto na placa-mãe |
 |-------|-----------------|--------------------------|
-| **Comando SMART** |	Precisa do `-d sat` (e às vezes `sat,12`, `usbjmicron`, `usbsunplus`) |	Normalmente sem `-d`: smartctl -a /dev/sdX |
-| **SMART passa?** |	Depende do chip do dock. Alguns bloqueiam |	Sempre passa, desde que a BIOS esteja em modo **AHCI** |
-| `BusType` |	`USB` |	`SATA` (ou `RAID`, se estiver em modo RAID/Intel RST) |
-| **Serial no Windows** |	Genérico (ex.: `1234567890123`) |	Serial real do disco |
-| `MediaType` |	Quase sempre `Unspecified` |	Mostra `SSD` ou `HDD` corretamente |
-| `Get-StorageReliabilityCounter` |	Costuma vir vazio |	Costuma funcionar (temperatura, desgaste, horas ligado) |
-| **Velocidade (CrystalDiskMark)** |	Limitada pelo dock e pela porta USB |	Velocidade real do disco (SATA III, até ~550 MB/s) |
-| **Testes longos** |	Risco de o dock desligar ou a USB suspender |	Mais estável |
-| **Conexão** |	Hot-swap, o dock já fornece energia |	Precisa de cabo SATA e cabo de energia |
-| **Suspeita de CRC alto** |	Dock, cabo USB ou porta |	Cabo SATA ou porta |
+| **Comando SMART** | Precisa do `-d sat` (e às vezes `sat,12`, `usbjmicron`, `usbsunplus`) | Normalmente sem `-d`: `smartctl -a /dev/sdX` |
+| **SMART passa?** | Depende do chip do dock. Alguns bloqueiam | Sempre passa, desde que a BIOS esteja em modo **AHCI** |
+| **`BusType`** | `USB` | `SATA` (ou `RAID`, se estiver em modo RAID/Intel RST) |
+| **Serial no Windows** | Genérico (ex.: `1234567890123`) | Serial real do disco |
+| **`MediaType`** | Quase sempre `Unspecified` | Mostra `SSD` ou `HDD` corretamente |
+| **`Get-StorageReliabilityCounter`** | Costuma vir vazio | Costuma funcionar (temperatura, desgaste, horas ligado) |
+| **Velocidade (CrystalDiskMark)** | Limitada pelo dock e pela porta USB | Velocidade real do disco (SATA III, até ~550 MB/s) |
+| **Testes longos** | Risco de o dock desligar ou a USB suspender | Mais estável |
+| **Conexão** | Hot-swap, o dock já fornece energia | Precisa de cabo SATA e cabo de energia |
+| **Suspeita de CRC alto** | Dock, cabo USB ou porta | Cabo SATA ou porta |
 
 Teste **um disco por vez**.
 
@@ -54,7 +62,7 @@ Teste **um disco por vez**.
 **Pontos de atenção para dock/case:**
 
 - Docks baratos podem não repassar o SMART, mostrar capacidade errada ou ter limite de tamanho em chips muito antigos.
-- Para o desempenho, vale ter um dock com **UASP** e conectar em uma porta USB 3.x (azul ou USB-C). Em USB 2.0 a velocidade cai para algo em torno de 35 a 40 MB/s.
+- Para o desempenho, vale ter um dock com **UASP** e conectar em uma porta USB 3.x (azul ou USB-C). Em USB 2.0, a velocidade cai para algo em torno de 35 a 40 MB/s.
 - Um case (disco fechado dentro de uma caixa) se comporta como um dock, mas esquenta mais, então vale ficar de olho na temperatura durante o teste longo.
 
 ### Passo 1: Preparação
@@ -72,7 +80,8 @@ smartctl --scan
 smartctl -i /dev/sdX -d sat
 ```
 
-- Troque o sdX pela **id** do disco. (sda para o disco 0, sdb para o 1, sdc para o 2, etc.)
+- Troque o `sdX` pela letra do disco: `sda` para o disco 0, `sdb` para o 1, `sdc` para o 2, e assim por diante. A saída do `smartctl --scan` mostra os nomes disponíveis.
+- Se o disco estiver ligado direto na placa-mãe, normalmente você pode omitir o `-d sat`.
 - Confirme no `Get-Disk` que o `BusType` é **USB** e anote o número do disco.
 - Confirme **modelo e serial reais** no `smartctl -i` (compare com a etiqueta). O serial mostrado pelo Windows costuma ser genérico quando o disco está no dock.
 - Verifique se aparece `SMART support is: Available` e `Enabled`.
@@ -87,7 +96,7 @@ smartctl -a /dev/sdX -d sat
 **Anote os valores iniciais** e verifique:
 
 - `overall-health`: deve ser **PASSED**
-- `SSD_Life_Left` (vida útil restante, em SSDs)
+- `SSD_Life_Left` (vida útil restante, em SSDs; o nome pode variar conforme o fabricante)
 - `Reallocated_Event_Count` ou `Reallocated_Sector_Ct`: ideal **0**
 - `Current_Pending_Sector` e `Offline_Uncorrectable`: devem ser **0**
 - `CRC_Error_Count`: se alto, suspeite do cabo ou do dock
@@ -102,7 +111,7 @@ smartctl -t long /dev/sdX -d sat
 smartctl -l selftest /dev/sdX -d sat
 ```
 
-- A primeira linha é para rodar o teste, aguarde o tempo correspondente, e verifique o resultado utilizando a segunda linha.
+- Em cada par de comandos, a primeira linha inicia o teste. Aguarde o tempo correspondente e veja o resultado com a segunda linha.
 - O teste curto leva cerca de 2 minutos. O longo pode levar horas.
 - Não desconecte nem mexa no dock durante o teste.
 - O resultado esperado é **Completed without error**.
@@ -133,7 +142,7 @@ Somente para discos aprovados. Veja [Limpeza, formatação e criação de parti�
 
 ### Passo 9: Validação de desempenho
 
-Rode o **CrystalDiskMark** ([crystalmark.info](https://crystalmark.info/en/software/crystaldiskinfo/)) (botão "All") e compare com a especificação do fabricante. Pelo dock, o limite costuma ser o próprio dock ou a porta USB, e não o disco.
+Rode o [CrystalDiskMark](https://crystalmark.info/en/software/crystaldiskmark/) (botão "All") e compare com a especificação do fabricante. Pelo dock, o limite costuma ser o próprio dock ou a porta USB, e não o disco.
 
 ### Passo 10: Registro
 
@@ -142,6 +151,8 @@ Anote para cada disco: serial, modelo, horas ligado, realocados, vida útil (SSD
 ## Windows (PowerShell / CMD)
 
 Abra o PowerShell **como Administrador**.
+
+> No CMD, os comandos `smartctl`, `chkdsk`, `fsutil`, `sfc`, `DISM` e `winsat` funcionam normalmente. Já os comandos no formato `Verbo-Substantivo` (como `Get-Disk` e `Clear-Disk`) só funcionam no PowerShell. Para abri-lo a partir do CMD, digite `powershell`.
 
 ### Instalar o smartmontools
 
@@ -164,7 +175,7 @@ Se o comando não for reconhecido, chame pelo caminho completo:
 & "C:\Program Files\smartmontools\bin\smartctl.exe" --scan
 ```
 
-Alternativa gráfica: CrystalDiskInfo.
+Alternativa gráfica: [CrystalDiskInfo](https://crystalmark.info/en/software/crystaldiskinfo/).
 
 ### Identificar o disco
 
@@ -192,7 +203,7 @@ smartctl -i /dev/sdc -d sat
 smartctl -a /dev/sdc -d sat
 ```
 
-O `-d sat` (*SCSI/ATA Translation*) permite que o comando SMART atravesse o dock USB. Se der erro ou vier vazio, tente:
+A opção `-d sat` (*device type* = SAT, de *SCSI/ATA Translation*) indica ao `smartctl` como conversar com o disco através da ponte USB-SATA do dock. Se der erro ou vier vazio, tente:
 
 ```powershell
 smartctl -i /dev/sdc -d sat,12
@@ -336,7 +347,8 @@ Get-Volume
 ```
 
 ```powershell
-# 6. Porem se o disco ja tiver partição e letra designada, voce pode só formatar:
+# Alternativa: se o disco já tem partição e letra, basta formatar o volume
+# Confira a letra antes: este comando apaga tudo no volume (troque o E pela letra do disco)
 Format-Volume -DriveLetter E -FileSystem exFAT -NewFileSystemLabel "HDD_Externo"
 ```
 
@@ -346,7 +358,11 @@ Observações:
 - Em **HDD**, adicione `-Full` ao `Format-Volume` para uma formatação completa (mais lenta, mas grava em todo o disco e serve como teste extra). Em **SSD**, use a formatação rápida.
 - Formatar não é uma sanitização segura. Se o disco tinha dados sensíveis, use uma ferramenta de apagamento seguro (*Secure Erase*) do fabricante.
 
-## Integridade dos arquivos do Windows
+## Verificação do sistema operacional (Windows)
+
+Esta seção é para o disco do sistema, e não para os discos sobressalentes.
+
+### Integridade dos arquivos do Windows
 
 Estes comandos verificam o **Windows instalado no seu PC**, e não o disco que está no dock.
 
@@ -463,6 +479,28 @@ sudo hdparm -Tt /dev/sdX
 # Estatísticas de I/O em tempo real (pacote: sysstat)
 iostat -x 2
 ```
+
+### Verificação do sistema operacional (Linux)
+
+Esta parte é para o disco do sistema, e não para os discos sobressalentes.
+
+```bash
+# Estado do sistema de arquivos ext2/3/4 (pode ser lido com o disco montado)
+sudo tune2fs -l /dev/sdX1 | grep -i -E "state|errors"
+
+# Integridade dos arquivos dos pacotes instalados
+# Debian / Ubuntu (sem saída = nenhuma diferença encontrada)
+sudo dpkg --verify
+
+# Fedora / RHEL
+sudo rpm -Va
+
+# Serviços com falha e erros registrados desde o último boot
+systemctl --failed
+journalctl -p err -b
+```
+
+> Alterações em arquivos de configuração aparecem nas verificações de pacotes e costumam ser normais. Para checar o sistema de arquivos do disco do sistema com `fsck`, a partição não pode estar montada: inicie por um pendrive Linux (live USB) e rode `sudo fsck -n /dev/sdX1`.
 
 ## Licença
 
