@@ -12,7 +12,7 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 - [Como interpretar os dados SMART](#como-interpretar-os-dados-smart)
 - [Sinais de alerta](#sinais-de-alerta)
 - [Limpeza, formatação e criação de partição](#limpeza-formatação-e-criação-de-partição)
-- [Integridade dos arquivos do Windows](#Integridade_dos_arquivos_do_Windows)
+- [Integridade dos arquivos do Windows](#Integridade-dos-arquivos-do-Windows)
 - [Linux (terminal)](#linux-terminal)
 - [Licença](#licença)
 
@@ -45,7 +45,7 @@ Teste **um disco por vez**.
 
 **Pontos de atenção para a conexão direta:**
 
-- **Desligue o PC antes de conectar o disco, a menos que tenha certeza de que o hot-plug está habilitado na BIOS. Isso evita danos e travamentos.
+- **Desligue o PC antes de conectar o disco**, a menos que tenha certeza de que o hot-plug está habilitado na BIOS. Isso evita danos e travamentos.
 - **Ordem de boot:** se o disco tiver um sistema operacional, o PC pode tentar iniciar por ele. Confira a ordem de boot na BIOS se o PC não iniciar normalmente.
 - **Risco de apagar o disco errado é maior**, pois o disco fica dentro do computador ao lado do disco do sistema. A checagem de `IsBoot`/`IsSystem` antes do `Clear-Disk` é ainda mais importante.
 - **Modo RAID/Intel RST:** em alguns notebooks e PCs de empresa, a BIOS vem em modo RAID e o Windows pode esconder o SMART ou não enxergar o disco. Se ocorrer, mude para AHCI (com cuidado: mexer nisso no disco do sistema pode impedir o Windows de iniciar).
