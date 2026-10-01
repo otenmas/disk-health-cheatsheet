@@ -2,17 +2,18 @@
 
 # disk-health-cheatsheet
 
-Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usando comandos de terminal e PowerShell.
+Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usando comandos de terminal e PowerShell. O foco é a verificação de discos sobressalentes, pera avaliar sua condicao de recuperacao, ou reaproveitamento apos testes e limpeza. Apesar do foco nao ser a integridade dos discos do sistema operacional, foi implantado uma secao para esse fim. Os comandos foram testados com o Windows 11, utilizando o PowerShell, rodando como administrador. no CMD alguns comandos nao funcionam, precisa verificar os comandos correlatos. Tambem foi cirada uma secao para o Linux.
 
 ## Índice
 
 - [Antes de começar](#antes-de-começar)
 - [Fluxo de trabalho de validação (passo a passo)](#fluxo-de-trabalho-de-validação-passo-a-passo)
 - [Windows (PowerShell / CMD)](#windows-powershell--cmd)
-- [Linux (terminal)](#linux-terminal)
 - [Como interpretar os dados SMART](#como-interpretar-os-dados-smart)
 - [Sinais de alerta](#sinais-de-alerta)
 - [Limpeza, formatação e criação de partição](#limpeza-formatação-e-criação-de-partição)
+- [Integridade dos arquivos do Windows](#Integridade_dos_arquivos_do_Windows)
+- [Linux (terminal)](#linux-terminal)
 - [Licença](#licença)
 
 ## Antes de começar
@@ -22,11 +23,39 @@ Referência rápida para verificar a saúde e a integridade de HDDs e SSDs usand
 - Comandos marcados como *somente leitura* não alteram nada no disco.
 - Substitua `/dev/sdX`, `/dev/nvme0` e `C:` pelo seu dispositivo ou letra de unidade.
 - ⚠️ Comandos com `C:` atuam no disco **do próprio computador**, e não no disco conectado ao dock.
-- Se o disco veio de uma empresa, confirme que o reaproveitamento é autorizado e que os dados antigos já foram tratados.
 
 ## Fluxo de trabalho de validação (passo a passo)
 
-Roteiro para validar discos SATA descartados (ou novos) ligados por dock/case USB no Windows. Teste **um disco por vez**.
+Roteiro para validar discos SATA descartados (ou novos). Normalmente Tecnicos de Informatica, funcionarios de TI, que trabalham com Hardware, e constantemente trabalham com discos (HDD, SSD), utilizam dock station para HD/SSD USB para testar e clonar os discos. Por isso algums parametros são necessarios nos comandos do **SMART**. No caso de testar os discos conectados diretamente em porta SATA da placa mãe, que em geral é **mais confiável**, os parametros podem mudar.
+
+| Ponto	| Dock / case USB |	SATA direto na placa-mãe |
+|-------|-----------------|--------------------------|
+| **Comando SMART** |	Precisa do `-d sat` (e às vezes `sat,12`, `usbjmicron`, `usbsunplus`) |	Normalmente sem `-d`: smartctl -a /dev/sdX |
+| **SMART passa?** |	Depende do chip do dock. Alguns bloqueiam |	Sempre passa, desde que a BIOS esteja em modo **AHCI** |
+| `BusType` |	`USB` |	`SATA` (ou `RAID`, se estiver em modo RAID/Intel RST) |
+| **Serial no Windows** |	Genérico (ex.: `1234567890123`) |	Serial real do disco |
+| `MediaType` |	Quase sempre `Unspecified` |	Mostra `SSD` ou `HDD` corretamente |
+| `Get-StorageReliabilityCounter` |	Costuma vir vazio |	Costuma funcionar (temperatura, desgaste, horas ligado) |
+| **Velocidade (CrystalDiskMark)** |	Limitada pelo dock e pela porta USB |	Velocidade real do disco (SATA III, até ~550 MB/s) |
+| **Testes longos** |	Risco de o dock desligar ou a USB suspender |	Mais estável |
+| **Conexão** |	Hot-swap, o dock já fornece energia |	Precisa de cabo SATA e cabo de energia |
+| **Suspeita de CRC alto** |	Dock, cabo USB ou porta |	Cabo SATA ou porta |
+
+Teste **um disco por vez**.
+
+**Pontos de atenção para a conexão direta:**
+
+- **Desligue o PC antes de conectar o disco, a menos que tenha certeza de que o hot-plug está habilitado na BIOS. Isso evita danos e travamentos.
+- **Ordem de boot:** se o disco tiver um sistema operacional, o PC pode tentar iniciar por ele. Confira a ordem de boot na BIOS se o PC não iniciar normalmente.
+- **Risco de apagar o disco errado é maior**, pois o disco fica dentro do computador ao lado do disco do sistema. A checagem de `IsBoot`/`IsSystem` antes do `Clear-Disk` é ainda mais importante.
+- **Modo RAID/Intel RST:** em alguns notebooks e PCs de empresa, a BIOS vem em modo RAID e o Windows pode esconder o SMART ou não enxergar o disco. Se ocorrer, mude para AHCI (com cuidado: mexer nisso no disco do sistema pode impedir o Windows de iniciar).
+- **Windows pode montar o disco automaticamente** se ele tiver partições conhecidas (NTFS, por exemplo). Isso só importa se o disco tiver letra: nesse caso, os comandos de sistema de arquivos passam a se aplicar, embora, como você vai formatar depois, não sejam necessários.
+
+**Pontos de atenção para dock/case:**
+
+- Docks baratos podem não repassar o SMART, mostrar capacidade errada ou ter limite de tamanho em chips muito antigos.
+- Para o desempenho, vale ter um dock com **UASP** e conectar em uma porta USB 3.x (azul ou USB-C). Em USB 2.0 a velocidade cai para algo em torno de 35 a 40 MB/s.
+- Um case (disco fechado dentro de uma caixa) se comporta como um dock, mas esquenta mais, então vale ficar de olho na temperatura durante o teste longo.
 
 ### Passo 1: Preparação
 
@@ -43,6 +72,7 @@ smartctl --scan
 smartctl -i /dev/sdX -d sat
 ```
 
+- Troque o sdX pela **id** do disco. (sda para o disco 0, sdb para o 1, sdc para o 2, etc.)
 - Confirme no `Get-Disk` que o `BusType` é **USB** e anote o número do disco.
 - Confirme **modelo e serial reais** no `smartctl -i` (compare com a etiqueta). O serial mostrado pelo Windows costuma ser genérico quando o disco está no dock.
 - Verifique se aparece `SMART support is: Available` e `Enabled`.
@@ -72,6 +102,7 @@ smartctl -t long /dev/sdX -d sat
 smartctl -l selftest /dev/sdX -d sat
 ```
 
+- A primeira linha é para rodar o teste, aguarde o tempo correspondente, e verifique o resultado utilizando a segunda linha.
 - O teste curto leva cerca de 2 minutos. O longo pode levar horas.
 - Não desconecte nem mexa no dock durante o teste.
 - O resultado esperado é **Completed without error**.
@@ -86,7 +117,7 @@ Compare com os valores anotados no Passo 3. Se realocados, pendentes ou não cor
 
 ### Passo 6: Varredura de superfície (opcional, só HDD)
 
-Use o Victoria em modo de **leitura** (sem remapear nem escrever). Muitos blocos lentos ou com erro indicam um disco em degradação. Em SSD, esta etapa é dispensável.
+Use o programa [**Victoria**](https://hdd.by/victoria/) em modo de **leitura** (sem remapear nem escrever). Muitos blocos lentos ou com erro indicam um disco em degradação. Em SSD, esta etapa é dispensável.
 
 ### Passo 7: Veredito
 
@@ -102,7 +133,7 @@ Somente para discos aprovados. Veja [Limpeza, formatação e criação de parti�
 
 ### Passo 9: Validação de desempenho
 
-Rode o **CrystalDiskMark** (botão "All") e compare com a especificação do fabricante. Pelo dock, o limite costuma ser o próprio dock ou a porta USB, e não o disco.
+Rode o **CrystalDiskMark** ([crystalmark.info](https://crystalmark.info/en/software/crystaldiskinfo/)) (botão "All") e compare com a especificação do fabricante. Pelo dock, o limite costuma ser o próprio dock ou a porta USB, e não o disco.
 
 ### Passo 10: Registro
 
@@ -233,7 +264,89 @@ chkdsk C: /f /r
 
 > ⚠️ Evite `chkdsk /r` em SSDs. É lento e desnecessário; `/f` basta.
 
-### Integridade dos arquivos do Windows
+## Como interpretar os dados SMART
+
+### Atributos de HDD e SSD SATA
+
+| ID  | Atributo                | O que significa                                                                                   |
+|-----|-------------------------|---------------------------------------------------------------------------------------------------|
+| 5   | Reallocated_Sector_Ct   | Setores defeituosos já remapeados. Valores crescentes são mau sinal.                              |
+| 9   | Power_On_Hours          | Total de horas que o disco ficou ligado.                                                          |
+| 12  | Power_Cycle_Count       | Quantas vezes o disco foi ligado e desligado.                                                     |
+| 177 | Wear_Leveling_Count     | Desgaste do SSD (o significado varia por fabricante).                                             |
+| 187 | Reported_Uncorrect      | Erros que não puderam ser corrigidos.                                                             |
+| 194 | Temperature_Celsius     | Temperatura atual.                                                                                |
+| 196 | Reallocated_Event_Count | **Muito importante.** Quantas vezes o disco moveu dados de uma área com falha para uma reserva. Zero é o ideal. |
+| 197 | Current_Pending_Sector  | Setores aguardando remapeamento. Deve ser 0.                                                      |
+| 198 | Offline_Uncorrectable   | Setores que falharam na varredura offline. Deve ser 0.                                            |
+| 199 | UDMA_CRC_Error_Count    | Geralmente indica **cabo ou conexão ruim**, não o disco em si (alguns discos chamam de `SATA_CRC_Error_Count`). |
+| 231 | SSD_Life_Left           | Vida útil restante do SSD, em %.                                                                  |
+| 233 | Media_Wearout_Indicator | Vida útil restante do SSD (Intel e alguns outros).                                                |
+| 234 | Flash_Writes_GiB        | Total de GiB gravados no disco.                                                                   |
+
+> Os IDs e os nomes dos atributos variam entre fabricantes. Confie no **nome** e confira na saída do seu disco.
+
+### Campos NVMe
+
+| Campo                           | O que significa                                                    |
+|---------------------------------|--------------------------------------------------------------------|
+| Critical Warning                | Deve ser `0`.                                                      |
+| Percentage Used                 | Vida útil do SSD consumida (100% = durabilidade nominal atingida). |
+| Available Spare                 | Blocos reserva restantes. Deve estar bem acima do limite.          |
+| Media and Data Integrity Errors | Deve ser `0`.                                                      |
+
+## Sinais de alerta
+
+- Saúde geral do SMART indica **FAILED**
+- `Reallocated_Sector_Ct`, `Current_Pending_Sector` ou `Offline_Uncorrectable` acima de 0 e aumentando
+- Erros de I/O repetidos no `dmesg` ou no log de eventos do Windows
+- Leituras muito lentas, travamentos ou ruídos incomuns, como cliques (HDD)
+- `Percentage Used` do SSD próximo de 100% ou `Available Spare` perto do limite
+
+Se notar qualquer um desses sinais, **faça backup imediatamente** e planeje a substituição.
+
+## Limpeza, formatação e criação de partição
+
+> ⚠️ **Estes comandos apagam tudo e não têm volta.** Só use em discos aprovados no teste, e confirme o número do disco duas vezes. Errar o número pode apagar o disco do seu próprio computador.
+
+```powershell
+# 1. Confirme o número do disco: BusType deve ser USB e IsBoot/IsSystem devem ser False
+Get-Disk | Select-Object Number, FriendlyName, BusType, Size, PartitionStyle, IsBoot, IsSystem
+```
+
+```powershell
+# 2. Limpeza total: remove partições e o estado RAW (troque o 2 pelo número do disco)
+# Se retornar o erro "The disk has not been initialized", pule para o passo 3.
+Clear-Disk -Number 2 -RemoveData -RemoveOEM
+```
+
+```powershell
+# 3. Inicializar o disco com tabela de partição GPT
+Initialize-Disk -Number 2 -PartitionStyle GPT
+```
+
+```powershell
+# 4. Criar a partição com todo o espaço, atribuir uma letra e formatar em exFAT
+New-Partition -DiskNumber 2 -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem exFAT -NewFileSystemLabel "SSD_Externo"
+```
+
+```powershell
+# 5. Conferir o resultado
+Get-Volume
+```
+
+```powershell
+# 6. Porem se o disco ja tiver partição e letra designada, voce pode só formatar:
+Format-Volume -DriveLetter E -FileSystem exFAT -NewFileSystemLabel "HDD_Externo"
+```
+
+Observações:
+
+- **exFAT** funciona bem em Windows, macOS e Linux. Para uso só no Windows, troque por `-FileSystem NTFS`.
+- Em **HDD**, adicione `-Full` ao `Format-Volume` para uma formatação completa (mais lenta, mas grava em todo o disco e serve como teste extra). Em **SSD**, use a formatação rápida.
+- Formatar não é uma sanitização segura. Se o disco tinha dados sensíveis, use uma ferramenta de apagamento seguro (*Secure Erase*) do fabricante.
+
+## Integridade dos arquivos do Windows
 
 Estes comandos verificam o **Windows instalado no seu PC**, e não o disco que está no dock.
 
@@ -350,88 +463,6 @@ sudo hdparm -Tt /dev/sdX
 # Estatísticas de I/O em tempo real (pacote: sysstat)
 iostat -x 2
 ```
-
-## Como interpretar os dados SMART
-
-### Atributos de HDD e SSD SATA
-
-| ID  | Atributo                | O que significa                                                                                   |
-|-----|-------------------------|---------------------------------------------------------------------------------------------------|
-| 5   | Reallocated_Sector_Ct   | Setores defeituosos já remapeados. Valores crescentes são mau sinal.                              |
-| 9   | Power_On_Hours          | Total de horas que o disco ficou ligado.                                                          |
-| 12  | Power_Cycle_Count       | Quantas vezes o disco foi ligado e desligado.                                                     |
-| 177 | Wear_Leveling_Count     | Desgaste do SSD (o significado varia por fabricante).                                             |
-| 187 | Reported_Uncorrect      | Erros que não puderam ser corrigidos.                                                             |
-| 194 | Temperature_Celsius     | Temperatura atual.                                                                                |
-| 196 | Reallocated_Event_Count | **Muito importante.** Quantas vezes o disco moveu dados de uma área com falha para uma reserva. Zero é o ideal. |
-| 197 | Current_Pending_Sector  | Setores aguardando remapeamento. Deve ser 0.                                                      |
-| 198 | Offline_Uncorrectable   | Setores que falharam na varredura offline. Deve ser 0.                                            |
-| 199 | UDMA_CRC_Error_Count    | Geralmente indica **cabo ou conexão ruim**, não o disco em si (alguns discos chamam de `SATA_CRC_Error_Count`). |
-| 231 | SSD_Life_Left           | Vida útil restante do SSD, em %.                                                                  |
-| 233 | Media_Wearout_Indicator | Vida útil restante do SSD (Intel e alguns outros).                                                |
-| 234 | Flash_Writes_GiB        | Total de GiB gravados no disco.                                                                   |
-
-> Os IDs e os nomes dos atributos variam entre fabricantes. Confie no **nome** e confira na saída do seu disco.
-
-### Campos NVMe
-
-| Campo                           | O que significa                                                    |
-|---------------------------------|--------------------------------------------------------------------|
-| Critical Warning                | Deve ser `0`.                                                      |
-| Percentage Used                 | Vida útil do SSD consumida (100% = durabilidade nominal atingida). |
-| Available Spare                 | Blocos reserva restantes. Deve estar bem acima do limite.          |
-| Media and Data Integrity Errors | Deve ser `0`.                                                      |
-
-## Sinais de alerta
-
-- Saúde geral do SMART indica **FAILED**
-- `Reallocated_Sector_Ct`, `Current_Pending_Sector` ou `Offline_Uncorrectable` acima de 0 e aumentando
-- Erros de I/O repetidos no `dmesg` ou no log de eventos do Windows
-- Leituras muito lentas, travamentos ou ruídos incomuns, como cliques (HDD)
-- `Percentage Used` do SSD próximo de 100% ou `Available Spare` perto do limite
-
-Se notar qualquer um desses sinais, **faça backup imediatamente** e planeje a substituição.
-
-## Limpeza, formatação e criação de partição
-
-> ⚠️ **Estes comandos apagam tudo e não têm volta.** Só use em discos aprovados no teste, e confirme o número do disco duas vezes. Errar o número pode apagar o disco do seu próprio computador.
-
-```powershell
-# 1. Confirme o número do disco: BusType deve ser USB e IsBoot/IsSystem devem ser False
-Get-Disk | Select-Object Number, FriendlyName, BusType, Size, PartitionStyle, IsBoot, IsSystem
-```
-
-```powershell
-# 2. Limpeza total: remove partições e o estado RAW (troque o 2 pelo número do disco)
-# Se retornar o erro "The disk has not been initialized", pule para o passo 3.
-Clear-Disk -Number 2 -RemoveData -RemoveOEM
-```
-
-```powershell
-# 3. Inicializar o disco com tabela de partição GPT
-Initialize-Disk -Number 2 -PartitionStyle GPT
-```
-
-```powershell
-# 4. Criar a partição com todo o espaço, atribuir uma letra e formatar em exFAT
-New-Partition -DiskNumber 2 -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem exFAT -NewFileSystemLabel "SSD_Externo"
-```
-
-```powershell
-# 5. Conferir o resultado
-Get-Volume
-```
-
-```powershell
-# 6. Porem se o disco ja tiver partição e letra designada, voce pode só formatar:
-Format-Volume -DriveLetter E -FileSystem exFAT -NewFileSystemLabel "HDD_Externo"
-```
-
-Observações:
-
-- **exFAT** funciona bem em Windows, macOS e Linux. Para uso só no Windows, troque por `-FileSystem NTFS`.
-- Em **HDD**, adicione `-Full` ao `Format-Volume` para uma formatação completa (mais lenta, mas grava em todo o disco e serve como teste extra). Em **SSD**, use a formatação rápida.
-- Formatar não é uma sanitização segura. Se o disco tinha dados sensíveis, use uma ferramenta de apagamento seguro (*Secure Erase*) do fabricante.
 
 ## Licença
 
