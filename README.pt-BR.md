@@ -357,7 +357,10 @@ Observações:
 - **exFAT** funciona bem em Windows, macOS e Linux. Para uso só no Windows, troque por `-FileSystem NTFS`.
 - Em **HDD**, adicione `-Full` ao `Format-Volume` para uma formatação completa (mais lenta, mas grava em todo o disco e serve como teste extra). Em **SSD**, use a formatação rápida.
 - Formatar não é uma sanitização segura. Se o disco tinha dados sensíveis, use uma ferramenta de apagamento seguro (*Secure Erase*) do fabricante.
-
+- **EXT4:** O padrão do Linux. Extremamente seguro, rápido e possui *Journaling* (proteção contra perda de energia). **O Windows não consegue lê-lo nativamente.**
+- **NTFS:** O padrão do Windows. Possui excelente suporte de leitura e escrita no Linux moderno. É a melhor escolha para HDs internos secundários compartilhados entre os dois sistemas.
+- **exFAT:** Criado para pendrives e cartões SD. É universal (funciona em Windows, Linux e Mac), mas **não é seguro para SSDs principais** pois não possui *Journaling* (alto risco de corromper arquivos se o PC desligar à força) e não suporta permissões de segurança do Linux.
+ 
 ## Verificação do sistema operacional (Windows)
 
 Esta seção é para o disco do sistema, e não para os discos sobressalentes.
